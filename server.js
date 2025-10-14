@@ -3,9 +3,9 @@ const app = express();
 const port = 3000;
 const path = require('path');
 const multer = require('multer');
-
 const fs = require('fs'); // Módulo nativo para manipulação de pastas
 
+app.use(express.static(path.join(__dirname, 'public')));
 
 const createUploadDirectory = (dir) => { // Função para criar o diretório de upload, se ele não existir.
     if (!fs.existsSync(dir)) {
@@ -49,13 +49,13 @@ const upload = multer({
     fileFilter: fileFilter, // <--- Aplica o filtro de tipo
     limits: {              // <--- Aplica os limites de tamanho e quantidade
         fileSize: MAX_FILE_SIZE, 
-        files: 1 
+        files: 10 // [ALTERAÇÃO MINHA] antes era 1 — agora permite até 10 arquivos
     }
 });
 
 app.post('/upload', (req, res) => {
-    
-    upload.single('meuArquivo')(req, res, function (err) { // Chama 'upload.single' (Middleware) e passa uma função de callback (err)
+    // [ALTERAÇÃO MINHA] troquei single('meuArquivo') por array('meusArquivos', 10)
+    upload.array('meusArquivos', 10)(req, res, function (err) { // Chama 'upload.array' (Middleware) e passa uma função de callback (err)
         
         if (err instanceof multer.MulterError) { // Verifica se o erro é uma instância de erro do Multer (limits)
             return res.status(400).send({ 
@@ -68,11 +68,23 @@ app.post('/upload', (req, res) => {
             return res.status(400).send({ message: err.message });
         }
 
-        
-        if (!req.file){ // Lógica de Sucesso
+        // [ALTERAÇÃO MINHA] Ajuste de single -> múltiplos
+        const files = req.files || [];
+        if (!files.length){ // Lógica de Sucesso para múltiplos
             return res.status(400).send('Nenhum arquivo enviado');
         }
 
-        res.send(`Arquivo ${req.file.filename} enviado com sucesso`);
+        // [ALTERAÇÃO MINHA] Resposta listando todos os arquivos enviados
+        const arquivos = files.map((file) => ({
+            nomeOriginal: file.originalname,
+            nomeSalvo: file.filename,
+            tipo: file.mimetype,
+            tamanho: file.size
+        }));
+
+        return res.status(201).send({
+            message: `Enviado(s) ${arquivos.length} arquivo(s) com sucesso`,
+            arquivos
+        });
     });
 });

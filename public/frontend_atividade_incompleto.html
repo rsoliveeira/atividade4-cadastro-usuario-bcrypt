@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trabalho - Upload Múltiplo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    :root { --brand:#2563eb; --brandDark:#1d4ed8; }
+    body{ font-family:'Inter',sans-serif; background:#f3f4f6; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+    .card{ background:#fff; width:100%; max-width:760px; border-radius:14px; box-shadow:0 12px 24px rgba(0,0,0,.08); overflow:hidden; }
+    .card-header{ background:linear-gradient(135deg,#1e293b,#0ea5e9 55%,#22c55e); color:#fff; padding:22px 26px;}
+    .card-body{ padding:26px; }
+    .message-box{ display:none; margin-top:16px; padding:14px; border-radius:10px; font-weight:600; border:1px solid transparent;}
+    .message-box.success{ background:#d1fae5; color:#065f46; border-color:#34d399;}
+    .message-box.error{ background:#fee2e2; color:#991b1b; border-color:#f87171;}
+    .message-box.alert{ background:#fef3c7; color:#92400e; border-color:#fbbf24;}
+    .file-input{ width:100%; border:2px dashed #cbd5e1; border-radius:12px; padding:18px; background:#f8fafc; transition:.2s;}
+    .file-input:hover{ border-color:#94a3b8; background:#ffffff;}
+    .thumb{ width:72px; height:72px; object-fit:cover; border-radius:10px; border:1px solid #e5e7eb;}
+    .badge{ display:inline-flex; gap:8px; align-items:center; border:1px solid #e5e7eb; padding:6px 10px; border-radius:999px; font-size:12px; color:#334155; background:#f8fafc;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <h1 class="text-xl md:text-2xl font-bold">Atividade: Upload Múltiplo</h1>
+      <p class="opacity-90">Envie 1 a 10 imagens (JPG/PNG) ≤ 5MB para <code>http://localhost:3000/upload</code></p>
+    </div>
+
+    <div class="card-body">
+      <div class="flex items-center justify-between mb-4">
+        <span id="badgeContador" class="badge">0 arquivo(s) selecionado(s)</span>
+        <button id="limparBtn" class="text-sm underline text-slate-500 hover:text-slate-700">limpar seleção</button>
+      </div>
+
+      <div class="mb-4">
+        <label for="arquivoInput" class="block font-semibold text-slate-700 mb-2">Arquivos para Upload</label>
+        <!-- OBRIGATÓRIO: múltiplo e name "meusArquivos" -->
+        <input type="file" id="arquivoInput" name="meusArquivos" multiple accept="image/png, image/jpeg" class="file-input">
+        <p class="text-xs text-slate-500 mt-2">Dica: você pode arrastar e soltar arquivos aqui (dependendo do navegador).</p>
+      </div>
+
+      <div id="preview" class="grid grid-cols-5 gap-3 mb-4"></div>
+
+      <button id="enviarBtn"
+              class="w-full py-3 rounded-xl font-semibold text-white"
+              style="background: var(--brand);"
+              onmouseover="this.style.background='var(--brandDark)';"
+              onmouseout="this.style.background='var(--brand)';">
+        Enviar Arquivos
+      </button>
+
+      <div id="messageBox" class="message-box"></div>
+
+      <div class="mt-6 text-xs text-slate-500">
+        <strong>Regras:</strong> 1–10 arquivos • apenas JPG/PNG • máx. 5MB cada. As validações do backend (Multer) serão exibidas aqui.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const enviarBtn = document.getElementById('enviarBtn');
+    const limparBtn = document.getElementById('limparBtn');
+    const messageBox = document.getElementById('messageBox');
+    const arquivoInput = document.getElementById('arquivoInput');
+    const badgeContador = document.getElementById('badgeContador');
+    const preview = document.getElementById('preview');
+
+    const MB = 1024 * 1024;
+    const TAM_MAX = 5 * MB;
+
+    function exibirMensagem(msg, tipo){ messageBox.textContent = msg; messageBox.className = `message-box ${tipo}`; messageBox.style.display='block'; }
+    function limparMensagem(){ messageBox.textContent=''; messageBox.className='message-box'; messageBox.style.display='none'; }
+
+    function atualizarContadorEPreview() {
+      const files = Array.from(arquivoInput.files || []);
+      badgeContador.textContent = `${files.length} arquivo(s) selecionado(s)`;
+
+      preview.innerHTML = '';
+      files.slice(0,15).forEach(f => {
+        if (f.type.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.className = 'thumb';
+          img.src = URL.createObjectURL(f);
+          img.title = `${f.name} (${(f.size/MB).toFixed(2)}MB)`;
+          const wrap = document.createElement('div');
+          wrap.appendChild(img);
+          preview.appendChild(wrap);
+        }
+      });
+    }
+
+    arquivoInput.addEventListener('change', atualizarContadorEPreview);
+    limparBtn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      arquivoInput.value = '';
+      atualizarContadorEPreview();
+      limparMensagem();
+    });
+
+    enviarBtn.addEventListener('click', enviarArquivos);
+
+    async function enviarArquivos(){
+      limparMensagem();
+      enviarBtn.disabled = true;
+      enviarBtn.textContent = 'Enviando...';
+
+      try{
+        // 1) Coletar arquivos
+        const arquivos = arquivoInput.files;
+        if (!arquivos || arquivos.length === 0){
+          exibirMensagem('Nenhum arquivo selecionado.', 'alert'); return;
+        }
+
+        // Pequenas validações no front (ajudam o usuário, mas o backend ainda valida)
+        if (arquivos.length > 10){
+          exibirMensagem('Você selecionou mais de 10 arquivos. Selecione no máximo 10.', 'alert');
+          return;
+        }
+        for (const a of arquivos){
+          const isImg = a.type === 'image/jpeg' || a.type === 'image/png';
+          if (!isImg){ exibirMensagem(`Arquivo "${a.name}" não é JPG/PNG.`, 'alert'); return; }
+          if (a.size >= TAM_MAX){ exibirMensagem(`"${a.name}" tem ${(a.size/MB).toFixed(2)}MB (máx. 5MB).`, 'alert'); return; }
+        }
+
+        // 2) FormData
+        const formData = new FormData();
+
+        // 3) Loop na FileList
+        for (const arquivo of arquivos){
+          // 4) append('meusArquivos', arquivo)
+          formData.append('meusArquivos', arquivo);
+        }
+
+        // 5) fetch POST
+        const resp = await fetch('http://localhost:3000/upload', { method:'POST', body: formData });
+
+        // 6) Tratar resposta (JSON ou texto)
+        let data;
+        try { data = await resp.json(); }
+        catch(_){ const txt = await resp.text(); data = { message: txt }; }
+
+        if (!resp.ok){
+          // traduz alguns erros comuns de Multer
+          const msg = data?.message || '';
+          if (msg.includes('Multer') && msg.includes('LIMIT_FILE_COUNT')){
+            exibirMensagem('Erro do Multer: too many files (máx. 10).', 'error');
+          } else if (msg.toLowerCase().includes('tipo de arquivo inválido')){
+            exibirMensagem('Tipo de arquivo inválido. Apenas JPG e PNG são permitidos.', 'error');
+          } else if (msg.toLowerCase().includes('file too large')){
+            exibirMensagem('Arquivo muito grande (máx. 5MB por arquivo).', 'error');
+          } else {
+            exibirMensagem(msg || 'Falha no upload.', 'error');
+          }
+          return;
+        }
+
+        // Sucesso
+        if (Array.isArray(data?.arquivos)){
+          const nomes = data.arquivos.map(a => a.nomeOriginal || a.nomeSalvo).join(', ');
+          exibirMensagem(`✅ ${data.message} (${nomes})`, 'success');
+        } else {
+          exibirMensagem(`✅ ${data?.message || 'Arquivos enviados com sucesso.'}`, 'success');
+        }
+      } catch (err){
+        console.error(err);
+        exibirMensagem('Erro de conexão com o servidor.', 'error');
+      } finally {
+        enviarBtn.disabled = false;
+        enviarBtn.textContent = 'Enviar Arquivos';
+      }
+    }
+  </script>
+</body>
+</html>
