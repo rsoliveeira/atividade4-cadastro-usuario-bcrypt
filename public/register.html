@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Cadastro de Usuário</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(135deg,#0ea5e9,#22c55e); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .card { background:#fff; width:100%; max-width:520px; border-radius:16px; box-shadow:0 16px 32px rgba(0,0,0,.15); overflow:hidden; }
+    .header { background:rgba(0,0,0,.6); color:#fff; padding:18px 22px; }
+    .body { padding:22px; }
+    .btn { background:#2563eb; color:#fff; font-weight:600; padding:10px 14px; border-radius:10px; width:100%; transition:.2s; }
+    .btn:hover { background:#1d4ed8; }
+    .msg { display:none; margin-top:12px; padding:12px; border-radius:10px; border:1px solid transparent; font-weight:600; }
+    .msg.ok { display:block; background:#d1fae5; border-color:#34d399; color:#065f46; }
+    .msg.err{ display:block; background:#fee2e2; border-color:#f87171; color:#991b1b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1 class="text-xl font-bold">Cadastro de Usuário (Atv. 4)</h1>
+      <p class="opacity-90 text-sm">Senhas com bcrypt · validação de usuário existente</p>
+    </div>
+    <div class="body">
+      <div class="mb-3">
+        <label class="font-semibold">Username</label>
+        <input id="username" class="w-full border rounded-lg p-2 mt-1" placeholder="ex: rodrigo"/>
+      </div>
+      <div class="mb-3">
+        <label class="font-semibold">Email</label>
+        <input id="email" type="email" class="w-full border rounded-lg p-2 mt-1" placeholder="ex: rodrigo@email.com"/>
+      </div>
+      <div class="mb-4">
+        <label class="font-semibold">Senha</label>
+        <input id="password" type="password" class="w-full border rounded-lg p-2 mt-1" placeholder="mín. 6 caracteres"/>
+      </div>
+      <button id="btn" class="btn">Cadastrar</button>
+      <div id="msg" class="msg"></div>
+      <p class="text-xs text-slate-500 mt-4">Endpoint: <code>POST /register</code> | Hash: <code>bcrypt.hash(password, 10)</code></p>
+    </div>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const btn = el('btn'), msg = el('msg');
+
+    btn.addEventListener('click', async () => {
+      msg.className = 'msg'; msg.style.display='none';
+
+      const username = el('username').value.trim();
+      const email = el('email').value.trim();
+      const password = el('password').value;
+
+      if (!username || !email || !password) {
+        msg.textContent = 'Preencha todos os campos.'; msg.className='msg err'; return;
+      }
+
+      try {
+        const resp = await fetch('/register', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ username, email, password })
+        });
+        const data = await resp.json();
+        if (!resp.ok) { throw new Error(data?.message || 'Falha no cadastro'); }
+
+        msg.textContent = data.message || 'Usuário cadastrado com sucesso!';
+        msg.className = 'msg ok';
+      } catch (e) {
+        msg.textContent = e.message || 'Erro ao cadastrar';
+        msg.className = 'msg err';
+      }
+    });
+  </script>
+</body>
+</html>
